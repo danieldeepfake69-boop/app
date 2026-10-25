@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triathlon Dashboard</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#161a20;--mu:#6a7380;--bd:#e3e6eb;--ac:#0e7c86;--sw:#2b7de9;--bi:#e8892b;--ru:#2f9e5b;--kr:#8a5cd0;--bad:#d64545;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101317;--card:#181c22;--tx:#e8ebef;--mu:#8b94a1;--bd:#2a3039;--ac:#3fbcc7;--sw:#5b9cf0;--bi:#f0a050;--ru:#52c283;--kr:#a784e0;--bad:#f06b6b}}
+:root[data-theme="dark"]{--bg:#101317;--card:#181c22;--tx:#e8ebef;--mu:#8b94a1;--bd:#2a3039;--ac:#3fbcc7;--sw:#5b9cf0;--bi:#f0a050;--ru:#52c283;--kr:#a784e0;--bad:#f06b6b}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1080px;margin:0 auto;padding:16px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+h1{font-size:20px;margin:0}h2{font-size:13px;margin:0 0 10px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em}
+header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
+.sub{color:var(--mu);font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;min-width:0}
+.wide{grid-column:1/-1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.k b{display:block;font-size:22px}.k span{color:var(--mu);font-size:12px}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;border-radius:6px}
+.row{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:500}
+.scroll{overflow-x:auto}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+input,select,textarea,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:8px;min-width:0}
+button{background:var(--ac);color:#fff;border:0;cursor:pointer;font-weight:600}button.ghost{background:transparent;color:var(--mu);border:1px solid var(--bd)}
+label{font-size:12px;color:var(--mu);display:grid;gap:3px}
+#chat{display:flex;flex-direction:column;height:420px}
+#msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.m{padding:8px 11px;border-radius:12px;max-width:88%;white-space:pre-wrap;font-size:14px}
+.u{align-self:flex-end;background:var(--ac);color:#fff}.a{align-self:flex-start;background:var(--bg);border:1px solid var(--bd)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.chips button{background:var(--bg);color:var(--tx);border:1px solid var(--bd);font-weight:400;font-size:12px;padding:5px 9px;border-radius:14px}
+#cf{display:flex;gap:8px}#cf input{flex:1}
+.plan td:first-child{font-weight:600;width:42px}
+.pill{font-size:11px;padding:1px 7px;border-radius:9px;background:var(--bd);color:var(--mu)}
+.warn{color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Triathlon Dashboard <span class="sub">· Weg zum 70.3 Zell am See</span></h1><span class="sub" id="status">lädt…</span></header>
+
+<section class="card wide"><h2>Diese Woche</h2><div class="kpis" id="kpis"></div></section>
+
+<section class="card"><h2>Energy Score</h2><div id="en"></div></section>
+<section class="card"><h2>Trainingsbelastung</h2><div id="ld"></div></section>
+<section class="card wide"><h2>Heute empfohlen</h2><div id="today"></div></section>
+<section class="card"><h2>Wochenziel (Stunden)</h2><div id="goal"></div></section>
+<section class="card"><h2>Umfang letzte 8 Wochen (Std.)</h2><div id="chart"></div></section>
+<section class="card"><h2>Knie-Schmerz &amp; Laufen</h2><div id="pain"></div></section>
+
+<section class="card wide"><h2>Einheit eintragen</h2>
+<form id="f">
+<label>Datum<input type="date" id="d" required></label>
+<label>Sportart<select id="s"><option value="Rad">Rad / Rolle</option><option value="Lauf">Laufen</option><option value="Schwimmen">Schwimmen</option><option value="Kraft">Kraft / Mobility</option></select></label>
+<label>Dauer (min)<input type="number" id="m" min="1" required></label>
+<label>Ø Puls<input type="number" id="h"></label>
+<label>Ø Watt<input type="number" id="w"></label>
+<label>km<input type="number" step="0.01" id="k"></label>
+<label>Knie 0–10<input type="number" min="0" max="10" id="p"></label>
+<label>Notiz<input id="n"></label>
+<label>&nbsp;<button>Speichern</button></label>
+</form>
+<details style="margin-top:10px"><summary class="sub">CSV importieren (Datum,Sport,Min,Puls,Watt,km,Knie)</summary>
+<textarea id="csv" rows="4" style="width:100%;margin-top:6px" placeholder="2026-10-26,Rad,60,128,150,0,0"></textarea>
+<div style="display:flex;gap:8px;margin-top:6px"><button type="button" id="imp">Importieren</button><button type="button" class="ghost" id="exp">Export CSV</button></div></details>
+</section>
+
+<section class="card"><h2>Letzte Einheiten</h2><div class="scroll"><table id="list"></table></div></section>
+<section class="card wide"><h2>Aktivitäten analysieren (MyWhoosh und FIT-Dateien)</h2><p class="sub">FIT-Datei laden (MyWhoosh, Garmin, Wahoo, Strava-Export). Mehrere gleichzeitig möglich.</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><input type="file" id="ff" accept=".fit" multiple><select id="fs"></select></div><div id="an" style="margin-top:10px"></div></section>
+<section class="card wide"><h2>Mein Wochenplan (editierbar)</h2><div class="scroll"><table id="pe"></table></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="adapt" type="button">Nächste Woche anpassen</button><button id="cplan" type="button">Plan von KI</button><button id="rplan" type="button" class="ghost">Zurücksetzen</button></div><div id="adv" class="sub" style="margin-top:8px"></div></section>
+<table id="plan" hidden></table>
+
+<section class="card"><h2>Gesundheit (Health Connect)</h2><div id="well" class="sub">Noch keine Daten.</div></section>
+<section class="card wide" id="chat"><h2>KI fragen</h2><div class="chips" id="chips"></div><div id="msgs"><div class="m a">Frag mich zu Belastung, Energie oder deinem Plan.</div></div><form id="cf"><input id="ci" placeholder="Frage stellen…" autocomplete="off"><button>Senden</button></form></section>
+<section class="card wide"><h2>Einstellungen</h2><form id="sf"><label>Max-Puls<input type="number" id="smh"></label><label>FTP in Watt (optional)<input type="number" id="sft"></label><label>KI-Anbieter<select id="pv"><option value="gemini">Gemini (kostenlos)</option><option value="claude">Claude (kostenpflichtig)</option></select></label><label>Gemini-Schlüssel<input type="password" id="gk" placeholder="AIza…"></label><label>Gemini-Modell<input id="gm" placeholder="gemini-2.5-flash"></label><label>Claude-Schlüssel<input type="password" id="sk" placeholder="sk-ant-…"></label><label>&nbsp;<button>Speichern</button></label></form><p class="sub">Schlüssel bleiben nur auf deinem Handy. Gemini hat ein kostenloses Kontingent (Google darf kostenlose Anfragen zur Produktverbesserung nutzen), Claude rechnet pro Nutzung ab.</p></section>
+<section class="card"><h2>Ohne Schlüssel</h2><p class="sub">Kopiert deine Daten mit Kontext. Füge sie in der Claude-App ein und stelle deine Frage.</p><button id="cp">Daten für Claude kopieren</button></section>
+</main>
+
+<script>
+let PLAN=[["Mo","Rolle 60 min locker (Z2)","Rad",60],["Di","Kraft 40 min + Wasserwacht Schwimmen 60","Kraft",100],["Mi","Lauf/Geh-Intervalle 20–30 min","Lauf",30],["Do","Mobility 15 + Rolle 60 Intervalle","Rad",75],["Fr","Ausrollen / Core 30 min","Kraft",30],["Sa","Schwimmen + langes Rad 1,5–2,5 h","Rad",150],["So","Langer lockerer Lauf (Geh/Lauf)","Lauf",35]];
+const DEF=JSON.stringify(PLAN);try{const p=JSON.parse(localStorage.getItem("triPlan"));if(p&&p.length==7)PLAN=p}catch(e){}
+let GOAL=5.5, COL={Rad:"var(--bi)",Lauf:"var(--ru)",Schwimmen:"var(--sw)",Kraft:"var(--kr)"};
+let S=[], store=null;
+const $=id=>document.getElementById(id);
+const iso=d=>d.toISOString().slice(0,10);
+const mon=d=>{const x=new Date(d);x.setHours(12,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const wkKey=d=>iso(mon(d));
+const fh=m=>(m/60).toFixed(1);
+$("d").value=iso(new Date());
+
+async function init(){
+  try{
+    const db=await claude.use("db"),u=await claude.use("user");
+    if(db&&u){const id=await u.id();store=db.collection("data/users/"+id).doc("training");
+      const s=await store.get();if(s.exists)S=s.data().sessions||[];$("status").textContent="gespeichert in deinem Konto";}
+  }catch(e){}
+  if(!store){try{S=JSON.parse(localStorage.getItem("tri")||"[]")}catch(e){}$("status").textContent="lokal gespeichert";}
+  render();
+}
+async function save(){
+  S.sort((a,b)=>b.d.localeCompare(a.d));
+  try{ if(store) await store.set({sessions:S}); else localStorage.setItem("tri",JSON.stringify(S)); }catch(e){$("status").textContent="Speichern fehlgeschlagen"}
+  render();
+}
+function render(){
+  const wk=wkKey(new Date()), cur=S.filter(s=>wkKey(s.d+"T12:00")===wk);
+  const sum=t=>cur.filter(s=>s.s===t).reduce((a,s)=>a+s.m,0), tot=cur.reduce((a,s)=>a+s.m,0);
+  const hr=cur.filter(s=>s.h),avgH=hr.length?Math.round(hr.reduce((a,s)=>a+s.h,0)/hr.length):"–";
+  const km=cur.reduce((a,s)=>a+(s.k||0),0);
+  $("kpis").innerHTML=[["Gesamt",fh(tot)+" h"],["Rad",fh(sum("Rad"))+" h"],["Laufen",fh(sum("Lauf"))+" h"],["Schwimmen",fh(sum("Schwimmen"))+" h"],["Einheiten",cur.length],["Ø Puls",avgH],["km",km.toFixed(1)]].map(([l,v])=>`<div class="k"><b>${v}</b><span>${l}</span></div>`).join("");
+  const pct=Math.min(100,tot/60/GOAL*100);
+  $("goal").innerHTML=`<div class="row"><span>${fh(tot)} h von ${GOAL} h</span><span>${Math.round(pct)}%</span></div><div class="bar"><i style="width:${pct}%;background:var(--ac)"></i></div>`+
+    ["Rad","Lauf","Schwimmen","Kraft"].map(t=>`<div class="row"><span><span class="dot" style="background:${COL[t]}"></span>${t}</span><span>${fh(sum(t))} h</span></div>`).join("");
+  // 8 Wochen
+  const ws=[];for(let i=7;i>=0;i--){const d=mon(new Date());d.setDate(d.getDate()-7*i);ws.push(iso(d))}
+  const vals=ws.map(w=>S.filter(s=>wkKey(s.d+"T12:00")===w).reduce((a,s)=>a+s.m,0)/60),mx=Math.max(GOAL,...vals);
+  $("chart").innerHTML=`<svg viewBox="0 0 320 130" width="100%">`+vals.map((v,i)=>{const h=v/mx*95;return `<rect x="${i*40+8}" y="${105-h}" width="26" height="${h}" rx="4" fill="var(--ac)"/><text x="${i*40+21}" y="122" text-anchor="middle" font-size="9" fill="var(--mu)">${ws[i].slice(5)}</text><text x="${i*40+21}" y="${100-h}" text-anchor="middle" font-size="9" fill="var(--tx)">${v?v.toFixed(1):""}</text>`}).join("")+`</svg>`;
+  // Schmerz
+  const ps=S.filter(s=>s.p!=null).slice(0,10).reverse();
+  const runs=S.filter(s=>s.s==="Lauf").slice(0,3);
+  $("pain").innerHTML=(ps.length?`<svg viewBox="0 0 320 90" width="100%"><line x1="0" x2="320" y1="${80-24}" y2="${80-24}" stroke="var(--bad)" stroke-dasharray="4" opacity=".5"/><text x="2" y="${52}" font-size="9" fill="var(--bad)">Limit 3</text><polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${ps.map((s,i)=>`${i*(300/Math.max(1,ps.length-1))+10},${80-s.p*8}`).join(" ")}"/></svg>`:`<div class="sub">Noch keine Schmerzwerte.</div>`)+
+    `<div class="sub" style="margin-top:6px">Letzte Läufe: ${runs.length?runs.map(r=>`${r.d.slice(5)} ${r.m} min`+(r.p>3?` <span class="warn">(Knie ${r.p})</span>`:"")).join(" · "):"–"}</div>`;
+  $("list").innerHTML=`<tr><th>Datum</th><th>Sport</th><th>Min</th><th>Puls</th><th>W</th><th>km</th><th>Knie</th><th></th></tr>`+
+    S.slice(0,12).map((s,i)=>`<tr><td>${s.d.slice(5)}</td><td><span class="dot" style="background:${COL[s.s]}"></span>${s.s}</td><td>${s.m}</td><td>${s.h||""}</td><td>${s.w||""}</td><td>${s.k||""}</td><td>${s.p??""}</td><td><button class="ghost" data-i="${i}" style="padding:1px 7px">×</button></td></tr>`).join("");
+  const day=(new Date().getDay()+6)%7;
+  $("plan").innerHTML=PLAN.map((p,i)=>`<tr><td>${p[0]}${i===day?' <span class="pill">heute</span>':""}</td><td>${p[1]}</td></tr>`).join("");
+}
+$("list").onclick=e=>{const i=e.target.dataset.i;if(i!=null&&confirm("Eintrag löschen?")){S.splice(+i,1);save()}};
+$("f").onsubmit=e=>{e.preventDefault();const n=x=>$(x).value===""?null:+$(x).value;
+  S.push({d:$("d").value,s:$("s").value,m:n("m"),h:n("h"),w:n("w"),k:n("k"),p:n("p"),n:$("n").value});
+  ["m","h","w","k","p","n"].forEach(x=>$(x).value="");save()};
+$("imp").onclick=()=>{let c=0;$("csv").value.split("\n").forEach(l=>{const a=l.split(/[;,]/).map(x=>x.trim());if(a.length<3||!/^\d{4}-\d\d-\d\d$/.test(a[0]))return;
+  const n=i=>a[i]&&!isNaN(a[i])?+a[i]:null;S.push({d:a[0],s:["Rad","Lauf","Schwimmen","Kraft"].includes(a[1])?a[1]:"Rad",m:n(2),h:n(3),w:n(4),k:n(5),p:n(6),n:""});c++});$("csv").value="";if(c)save()};
+$("exp").onclick=()=>Android.copy("Datum,Sport,Min,Puls,Watt,km,Knie\n"+S.map(s=>[s.d,s.s,s.m,s.h??"",s.w??"",s.k??"",s.p??""].join(",")).join("\n"));
+
+let W=[];try{W=JSON.parse(localStorage.getItem("triW")||"[]")}catch(e){}
+function renderW(){if(!W.length)return;$("well").innerHTML="<table><tr><th>Tag</th><th>Schlaf</th><th>Ruhepuls</th><th>HRV</th></tr>"+W.slice(-7).reverse().map(w=>`<tr><td>${w.d.slice(5)}</td><td>${w.sleepMin?fh(w.sleepMin)+" h":""}</td><td>${w.rhr||""}</td><td>${w.hrv||""}</td></tr>`).join("")+"</table>"}
+window.onHC=j=>{let c=0;j.sessions.forEach(x=>{if(!S.some(s=>s.id===x.id||(s.n==="FIT"&&s.d===x.d&&s.s===x.s&&Math.abs(s.m-x.m)<=3))){S.push(x);c++}});W=j.wellness;try{localStorage.setItem("triW",JSON.stringify(W))}catch(e){}
+  c?save():render();renderW();$("status").textContent="Health Connect "+new Date().toTimeString().slice(0,5)};
+$("cp").onclick=()=>{const t=`Ich bin Triathlet, Ziel Ironman 70.3 Zell am See 2028, 4 Monate Grundlagenaufbau. Patellasehne war gereizt, jetzt schmerzfrei; Laufen vorsichtig (Knie max 3/10, nie an Folgetagen). Früher: 10 km 48 min, Rad 35 km/h bei Ø-Puls 163, Schwimmen 2:00/100 m. Heute ${iso(new Date())}. Wochenplan: ${JSON.stringify(PLAN.map(p=>p.slice(0,2)))}. Einheiten (d,s,m=Min,h=Puls,w=Watt,k=km,p=Knie): ${JSON.stringify(S.slice(0,40))}. Wellness (sleepMin,rhr,hrv): ${JSON.stringify(W)}.\n\nMeine Frage: `;
+  Android.copy(t);$("cp").textContent="Kopiert ✓"};
+let SET={maxHR:185,ftp:0,key:"",model:"claude-haiku-5-5"};
+try{Object.assign(SET,JSON.parse(localStorage.getItem("triSet")||"{}"))}catch(e){}
+const sv=()=>{try{localStorage.setItem("triPlan",JSON.stringify(PLAN))}catch(e){}};
+$("smh").value=SET.maxHR;$("sft").value=SET.ftp||"";$("sk").value=SET.key;$("gk").value=SET.gk||"";$("pv").value=SET.prov||"gemini";$("gm").value=SET.gm||"gemini-2.5-flash";
+$("sf").onsubmit=e=>{e.preventDefault();SET.maxHR=+$("smh").value||185;SET.ftp=+$("sft").value||0;SET.key=$("sk").value.trim();SET.gk=$("gk").value.trim();SET.prov=$("pv").value;SET.gm=$("gm").value.trim()||"gemini-2.5-flash";localStorage.setItem("triSet",JSON.stringify(SET));render()};
+const IFS={Rad:.65,Lauf:.75,Schwimmen:.65,Kraft:.5};
+function ld1(s){let f=IFS[s.s]||.6;if(s.w&&SET.ftp)f=s.w/SET.ftp;else if(s.h)f=s.h/SET.maxHR;f=Math.max(.4,Math.min(1.1,f));return s.m/60*f*f*100}
+function loads(){const by={};S.forEach(s=>by[s.d]=(by[s.d]||0)+ld1(s));const ds=Object.keys(by).sort();let ctl=0,atl=0,a7=0,a28=0;
+ if(ds.length){const T=new Date();T.setHours(12,0,0,0);for(let d=new Date(ds[0]+"T12:00");d<=T;d.setDate(d.getDate()+1)){const L=by[iso(d)]||0;ctl+=(L-ctl)/42;atl+=(L-atl)/7;const age=Math.round((T-d)/864e5);if(age<7)a7+=L;if(age<28)a28+=L}}
+ return{ctl,atl,tsb:ctl-atl,acwr:a28?a7/(a28/4):0,a7}}
+function lastPain(){const r=S.filter(s=>s.p!=null&&(new Date()-new Date(s.d+"T12:00"))<3*864e5).map(s=>s.p);return r.length?Math.max(...r):0}
+function energy(){const w=W.slice(-15),t=w[w.length-1]||{},pv=w.slice(0,-1),cl=v=>Math.max(0,Math.min(100,v));
+ const av=k=>{const a=pv.map(x=>x[k]).filter(Boolean);return a.length?a.reduce((x,y)=>x+y)/a.length:null};
+ const P=[];if(t.sleepMin)P.push([cl(t.sleepMin/450*100),.35]);if(t.hrv&&av("hrv"))P.push([cl(60+(t.hrv/av("hrv")-1)*200),.25]);
+ if(t.rhr&&av("rhr"))P.push([cl(60-(t.rhr-av("rhr"))*6),.15]);P.push([cl(65+loads().tsb*1.5),.25]);if(lastPain()>3)P.push([15,.3]);
+ return Math.round(P.reduce((a,p)=>a+p[0]*p[1],0)/P.reduce((a,p)=>a+p[1],0))}
+function advice(){const L=loads(),E=energy();let f=1,why="Plan bleibt, Alles im grünen Bereich";
+ if(lastPain()>3){f=.7;why="Knie über 3/10: Umfang senken, Laufen pausieren"}else if(L.acwr>1.3||E<50){f=.8;why="Hohe Last oder niedrige Energie: Woche entlasten"}else if(S.length>3){f=1.08;why="Alles ruhig: Umfang um etwa 8 % steigern"}
+ const wn=+(localStorage.getItem("triWk")||0)+1;if(wn%4===0){f=Math.min(f,.65);why="Jede 4. Woche ist Erholungswoche"}return{f,why,wn}}
+function extra(){const L=loads(),E=energy(),col=E>=70?"var(--ru)":E>=50?"var(--bi)":"var(--bad)",wk=L.acwr;
+ $("en").innerHTML=`<div style="font-size:40px;font-weight:700;color:${col}">${E}</div><div class="bar"><i style="width:${E}%;background:${col}"></i></div><div class="sub">Aus Schlaf, HRV, Ruhepuls, Form und Knie. ${E>=70?"Bereit für volles Training.":E>=50?"Eher locker trainieren.":"Erholung hat Vorrang."}</div>`;
+ $("ld").innerHTML=[["Fitness (CTL)",L.ctl.toFixed(0)],["Ermüdung (ATL)",L.atl.toFixed(0)],["Form (TSB)",L.tsb.toFixed(0)],["Last 7 Tage",L.a7.toFixed(0)],["ACWR",wk?wk.toFixed(2):"–"]].map(([a,b])=>`<div class="row"><span>${a}</span><b>${b}</b></div>`).join("")+`<div class="sub ${wk>1.5?"warn":""}" style="margin-top:6px">${wk>1.3?"Last steigt schnell, Vorsicht für die Sehne.":wk&&wk<.8?"Last sinkt, Platz zum Steigern.":"Steigerung im sicheren Bereich (0,8 bis 1,3)."}</div>`;
+ const di=(new Date().getDay()+6)%7,p=PLAN[di],f=E>=70?1:E>=50?.75:.5;let sp=p[2],mn=Math.round(p[3]*f/5)*5,tx=p[1];
+ if(sp==="Lauf"&&(lastPain()>3||E<50)){sp="Rad";mn=Math.min(mn,40);tx="Statt Laufen: lockere Rolle (Knie oder Energie)"}else if(E<40&&sp!=="Ruhe"){tx="Heute Ruhetag oder Spaziergang";mn=0}
+ $("today").innerHTML=`<div><b>${p[0]}: ${sp==="Ruhe"||!mn?"Ruhetag":sp+" "+mn+" min"}</b></div><div class="sub">${tx}${f<1?" (an deine Energie angepasst)":""}</div>`;
+ const m0=mon(new Date());
+ $("pe").innerHTML=`<tr><th></th><th>Sport</th><th>Min</th><th>Beschreibung</th><th>✓</th></tr>`+PLAN.map((p,i)=>{const d=new Date(m0);d.setDate(d.getDate()+i);const k=iso(d);
+  return `<tr><td>${p[0]}</td><td><select data-i="${i}" data-f="2">${["Rad","Lauf","Schwimmen","Kraft","Ruhe"].map(o=>`<option${o===p[2]?" selected":""}>${o}</option>`).join("")}</select></td><td><input type="number" style="width:64px" data-i="${i}" data-f="3" value="${p[3]}"></td><td><input style="width:100%;min-width:180px" data-i="${i}" data-f="1" value="${String(p[1]).replace(/"/g,"&quot;")}"></td><td>${S.some(s=>s.d===k)?"✓":""}</td></tr>`}).join("");
+ $("adv").textContent="Empfehlung für nächste Woche: "+advice().why}
+$("pe").onchange=e=>{const t=e.target,i=t.dataset.i;if(i==null)return;PLAN[i][+t.dataset.f]=t.dataset.f==="3"?(+t.value||0):t.value;sv();render()};
+$("rplan").onclick=()=>{if(confirm("Plan auf Standard zurücksetzen?")){PLAN=JSON.parse(DEF);sv();render()}};
+$("adapt").onclick=()=>{const a=advice(),np=PLAN.map(p=>[...p]);np.forEach(p=>{p[3]=Math.round(p[3]*a.f/5)*5;if(lastPain()>3&&p[2]==="Lauf"){p[2]="Rad";p[1]="Locker Rolle statt Laufen"}});
+ if(confirm(a.why+"\nMinuten: "+PLAN.map(p=>p[3]).join("/")+" → "+np.map(p=>p[3]).join("/")+"\nÜbernehmen?")){PLAN=np;localStorage.setItem("triWk",a.wn);sv();render()}};
+function ctx(){const L=loads();return `Du bist Triathlon-Coach-Assistent. Antworte kurz, auf Deutsch, konkret. Athlet: Ziel Ironman 70.3 Zell am See 2028; Grundlagenaufbau; Patellasehne war gereizt, jetzt schmerzfrei; Laufen vorsichtig (Knie max 3/10, nie an Folgetagen). Früher: 10 km 48 min, Rad 35 km/h bei Ø-Puls 163, Schwimmen 2:00/100 m. Heute ${iso(new Date())}. Energy Score ${energy()}/100, CTL ${L.ctl.toFixed(0)}, ATL ${L.atl.toFixed(0)}, TSB ${L.tsb.toFixed(0)}, ACWR ${L.acwr.toFixed(2)}. Plan [Tag,Text,Sport,Min]: ${JSON.stringify(PLAN)}. Einheiten: ${JSON.stringify(S.slice(0,30).map(({d,s,m,h,w,k,p})=>({d,s,m,h,w,k,p})))}. Wellness (sleepMin,rhr,hrv): ${JSON.stringify(W.slice(-14))}. ${window.ACT?'Aktuelle Aktivitätsanalyse: '+JSON.stringify(window.ACT)+'. ':''}Keine Diagnosen; bei Schmerz über 3 rate zu Arzt oder Physio.`}
+async function apiC(msgs){if(!SET.key)throw new Error("Bitte API-Schlüssel unter Einstellungen eintragen");
+ const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":SET.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:SET.model,max_tokens:1200,system:ctx(),messages:msgs})});
+ const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);return j.content.map(c=>c.text||"").join("")}
+function add(c,t){const d=document.createElement("div");d.className="m "+c;d.textContent=t;$("msgs").append(d);$("msgs").scrollTop=1e9;return d}
+const H=[];
+async function ask(q){add("u",q);const o=add("a","…");H.push({role:"user",content:q});try{const t=await api(H.slice(-7));o.textContent=t;H.push({role:"assistant",content:t})}catch(e){o.textContent="Fehler: "+e.message;H.pop()}$("msgs").scrollTop=1e9}
+["Wie ist meine Belastung?","Was trainiere ich heute?","Bewerte meine Woche","Darf ich beim Laufen steigern?"].forEach(q=>{const b=document.createElement("button");b.textContent=q;b.type="button";b.onclick=()=>ask(q);$("chips").append(b)});
+$("cf").onsubmit=e=>{e.preventDefault();const q=$("ci").value.trim();if(q){$("ci").value="";ask(q)}};
+$("cplan").onclick=async()=>{const b=$("cplan");b.disabled=true;b.textContent="…";try{
+ const t=await api([{role:"user",content:"Passe meinen Wochenplan an Belastung, Energie und Knie an. Antworte NUR mit einem JSON-Array aus genau 7 Einträgen [Tag,Beschreibung,Sport,Minuten]. Sport ist Rad, Lauf, Schwimmen, Kraft oder Ruhe."}]);
+ const a=JSON.parse(t.slice(t.indexOf("["),t.lastIndexOf("]")+1));if(a.length!==7||!a.every(x=>x.length===4))throw new Error("Ungültige Antwort");
+ if(confirm("Neuer Plan:\n"+a.map(x=>x[0]+": "+x[2]+" "+x[3]+" min").join("\n")+"\nÜbernehmen?")){PLAN=a.map(x=>[String(x[0]),String(x[1]),String(x[2]),+x[3]||0]);sv();render()}
+ }catch(e){alert("Fehler: "+e.message)}b.disabled=false;b.textContent="Plan von KI"};
+const _r=render;render=function(){GOAL=Math.max(1,Math.round(PLAN.reduce((a,p)=>a+(+p[3]||0),0)/6)/10);_r();extra();renderAn()};
+
+async function api(msgs){if((SET.prov||"gemini")==="claude")return apiC(msgs);
+ if(!SET.gk)throw new Error("Bitte Gemini-Schlüssel unter Einstellungen eintragen");
+ const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+(SET.gm||"gemini-2.5-flash")+":generateContent",{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":SET.gk},body:JSON.stringify({systemInstruction:{parts:[{text:ctx()}]},contents:msgs.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]}))})});
+ const j=await r.json();if(!r.ok)throw new Error(j.error&&j.error.message||r.status);
+ return(j.candidates&&j.candidates[0]&&j.candidates[0].content.parts||[]).map(p=>p.text||"").join("")||"(keine Antwort)"}
+function parseFit(buf){const v=new DataView(buf),hs=v.getUint8(0),end=v.getUint32(4,true)+hs,defs={},recs=[];let p=hs,ses=null;
+ while(p<end){const h=v.getUint8(p++);
+  if(h&0x80){const d=defs[(h>>5)&3];if(!d)break;p+=d.size;continue}
+  const lt=h&15;
+  if(h&0x40){p++;const le=v.getUint8(p++)===0,gm=v.getUint16(p,le);p+=2;const n=v.getUint8(p++),f=[];let size=0;
+   for(let i=0;i<n;i++){f.push({n:v.getUint8(p),s:v.getUint8(p+1)});size+=v.getUint8(p+1);p+=3}
+   if(h&0x20){const nd=v.getUint8(p++);for(let i=0;i<nd;i++){size+=v.getUint8(p+1);p+=3}}
+   defs[lt]={gm,le,f,size}}
+  else{const d=defs[lt];if(!d)break;const o={};let q=p;
+   for(const f of d.f){let x=null;if(f.s===1)x=v.getUint8(q);else if(f.s===2)x=v.getUint16(q,d.le);else if(f.s===4)x=v.getUint32(q,d.le);o[f.n]=x;q+=f.s}
+   p+=d.size;if(d.gm===20)recs.push(o);else if(d.gm===18)ses=o}}
+ return{recs,ses}}
+function analyse(r){const R=r.recs.filter(x=>x[253]!=null&&x[253]<4e9),n=R.length;if(n<30)return null;
+ const t0=R[0][253],dur=R[n-1][253]-t0;if(dur<120)return null;
+ const ok=(x,m)=>x!=null&&x<m?x:0,P=[],H=[],C=[];let j=0;
+ for(let s=0;s<=dur;s++){while(j<n-1&&R[j+1][253]-t0<=s)j++;P.push(ok(R[j][7],6e4));H.push(ok(R[j][3],250));C.push(ok(R[j][4],250))}
+ const N=P.length,sum=a=>a.reduce((x,y)=>x+y,0),avg=a=>a.length?sum(a)/a.length:0,pre=[0];P.forEach((x,i)=>pre.push(pre[i]+x));
+ const best=m=>{m*=60;if(N<m)return 0;let b=0;for(let i=m;i<=N;i++)b=Math.max(b,(pre[i]-pre[i-m])/m);return Math.round(b)};
+ let np=0;if(N>=30){let a=0,c=0;for(let i=30;i<=N;i++){a+=((pre[i]-pre[i-30])/30)**4;c++}np=Math.round((a/c)**.25)}
+ const hz=[0,0,0,0,0],pz=[0,0,0,0,0],hv=H.filter(x=>x>0);
+ H.forEach(h=>{if(h){const f=h/SET.maxHR;hz[f<.6?0:f<.7?1:f<.8?2:f<.9?3:4]++}});
+ if(SET.ftp)P.forEach(x=>{const f=x/SET.ftp;pz[f<.55?0:f<.75?1:f<.9?2:f<1.05?3:4]++});
+ const pc=a=>{const t=sum(a)||1;return a.map(x=>Math.round(x/t*100))},h2=Math.floor(N/2);
+ const ef=(s,e)=>{const h=avg(H.slice(s,e).filter(x=>x>0));return h?avg(P.slice(s,e))/h:0},e1=ef(0,h2),e2=ef(h2,N);
+ const K=Math.max(1,Math.ceil(N/240)),ds=a=>{const o=[];for(let i=0;i<N;i+=K)o.push(Math.round(avg(a.slice(i,i+K))));return o};
+ const dd=R.map(x=>x[5]).filter(x=>x!=null&&x<4e9).reduce((a,b)=>Math.max(a,b),0),sp=r.ses&&r.ses[5],cd=C.filter(x=>x>0);
+ return{id:"fit-"+t0,d:new Date((t0+631065600)*1000).toLocaleDateString("sv-SE"),sport:sp===1?"Lauf":sp===2?"Rad":sp===5?"Schwimmen":np?"Rad":"Kraft",
+  dur,km:Math.round(dd/1000)/100,ap:Math.round(avg(P)),np,hr:Math.round(avg(hv)),hrmax:hv.reduce((a,b)=>Math.max(a,b),0),b5:best(5),b20:best(20),b60:best(60),
+  dec:e1&&e2?Math.round((e1-e2)/e1*1000)/10:null,cad:Math.round(avg(cd)),hz:pc(hz),pz:pc(pz),ch:{p:ds(P),h:ds(H)}}}
+let AN={},selId=null;try{AN=JSON.parse(localStorage.getItem("triA")||"{}")}catch(e){}
+$("ff").onchange=async e=>{let c=0;for(const f of e.target.files){try{const a=analyse(parseFit(await f.arrayBuffer()));if(!a){alert(f.name+": keine Daten gefunden");continue}
+  AN[a.id]=a;selId=a.id;const m=Math.round(a.dur/60);S=S.filter(s=>!(s.n==="HC"&&s.d===a.d&&s.s===a.sport&&Math.abs(s.m-m)<=3));
+  if(!S.some(s=>s.id===a.id)){S.push({id:a.id,d:a.d,s:a.sport,m,h:a.hr||null,w:a.ap||null,k:a.km||null,p:null,n:"FIT"});c++}}catch(err){alert(f.name+": "+err.message)}}
+ Object.keys(AN).sort().reverse().slice(25).forEach(k=>delete AN[k]);try{localStorage.setItem("triA",JSON.stringify(AN))}catch(x){}
+ e.target.value="";c?save():render()};
+$("fs").onchange=e=>{selId=e.target.value;renderAn()};
+function renderAn(){const ids=Object.keys(AN).sort().reverse();if(!AN[selId])selId=ids[0];
+ $("fs").innerHTML=ids.map(i=>`<option value="${i}"${i===selId?" selected":""}>${AN[i].d} ${AN[i].sport} ${Math.round(AN[i].dur/60)} min</option>`).join("");
+ const a=AN[selId];window.ACT=null;if(!a){$("an").innerHTML='<div class="sub">Noch keine Datei geladen.</div>';return}
+ const F=SET.ftp,IF=F&&a.np?a.np/F:0,TSS=IF?Math.round(a.dur/3600*IF*IF*100):0,L=["Z1","Z2","Z3","Z4","Z5"];
+ const zb=(t,z)=>`<div class="sub" style="margin-top:8px">${t}</div>`+z.map((x,i)=>`<div class="row"><span>${L[i]}</span><span>${x} %</span></div><div class="bar" style="margin:2px 0 4px"><i style="width:${x}%;background:var(--ac)"></i></div>`).join("");
+ const mx=k=>Math.max(1,...a.ch[k]),pt=k=>a.ch[k].map((x,i)=>`${i*(320/Math.max(1,a.ch[k].length-1))},${105-x/mx(k)*100}`).join(" ");
+ window.ACT={datum:a.d,sport:a.sport,minuten:Math.round(a.dur/60),km:a.km,avgWatt:a.ap,NP:a.np,FTP:F||null,IF:IF?+IF.toFixed(2):null,TSS:TSS||null,avgHR:a.hr,maxHR:a.hrmax,best5minW:a.b5,best20minW:a.b20,best60minW:a.b60,entkopplungProzent:a.dec,kadenz:a.cad,pulsZonenProzent:a.hz,wattZonenProzent:F?a.pz:null,maxPulsEinstellung:SET.maxHR};
+ $("an").innerHTML=`<div class="kpis">${[["Dauer",Math.round(a.dur/60)+" min"],["km",a.km||"–"],["Ø Watt",a.ap||"–"],["NP",a.np||"–"],["IF / TSS",IF?IF.toFixed(2)+" / "+TSS:"FTP fehlt"],["Ø / Max Puls",a.hr?a.hr+" / "+a.hrmax:"–"],["5 / 20 / 60 min",a.b5+" / "+a.b20+" / "+a.b60+" W"],["Entkopplung",a.dec==null?"–":a.dec+" %"],["Kadenz",a.cad||"–"]].map(([l,v])=>`<div class="k"><b style="font-size:17px">${v}</b><span>${l}</span></div>`).join("")}</div>
+ ${a.b20?`<div class="sub" style="margin-top:6px">FTP-Schätzung (95 % der 20-min-Leistung): ${Math.round(a.b20*.95)} W. Nur sinnvoll, wenn die 20 min voll gefahren wurden.</div>`:""}
+ <svg viewBox="0 0 320 110" width="100%" style="margin-top:8px"><polyline fill="none" stroke="var(--bi)" stroke-width="1.5" points="${pt("p")}"/><polyline fill="none" stroke="var(--bad)" stroke-width="1.5" points="${pt("h")}"/></svg>
+ <div class="sub"><span class="dot" style="background:var(--bi)"></span>Watt <span class="dot" style="background:var(--bad);margin-left:8px"></span>Puls</div>
+ ${zb("Pulszonen (Zeitanteil)",a.hz)}${F?zb("Leistungszonen",a.pz):""}
+ <button id="aia" type="button" style="margin-top:10px">Von KI analysieren lassen</button>`;
+ $("aia").onclick=()=>{$("chat").scrollIntoView();ask("Analysiere diese Aktivität: Intensität, Pacing, Pulsentkopplung, was war gut, was verbessern, und was heißt das für meinen Plan?")}}
+
+renderW();
+init();
+</script>
+</body>
+</html>
